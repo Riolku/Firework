@@ -1,0 +1,12 @@
+#!/usr/bin/python3
+import sys
+import os
+
+def debug(string):
+  print(string)
+  os.system(string)
+  
+file = sys.argv[1]
+exe = "".join(file.split(".")[:-1])
+os.system("nasm "+file+" -felf64")
+os.system("gcc " + exe + ".o " + sys.argv[2])
