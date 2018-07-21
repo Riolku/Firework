@@ -78,7 +78,6 @@ parser parse_list(string nm, parser elem, parser sep) {
     ret->name = nm;
     parse_return * first = elem(tkns, pos);
     if(!first->success()) {
-      puts("IM A PROBLEM");
       return new parse_return("ERROR");
     }
     ret->nodes.push_back(first);
@@ -182,6 +181,7 @@ void print_tree(parse_return* tree, string indent) {
     print_tree(a, indent+" ");
   }
 }
+
 
 namespace fireworkLang {
 

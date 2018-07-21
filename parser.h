@@ -60,7 +60,7 @@ template<class ... Ts> parser parse_or(string nm, Ts ... args);
 parser parse_list(string nm, parser a, parser b);
 parser parse_repeat(string nm, parser a);
 parser parse_optional(string nm, parser a);
-parser parse_any(string nm); 
+parser parse_any(); 
 parser parse_except(string nm, parser arg1, parser arg2);
 
 void print_tree(parse_return* tree, string indent = "");
