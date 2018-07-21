@@ -109,12 +109,7 @@ parser parse_repeat(string nm, parser to_rep) {
   return function<parse_return*(vector<token>, int)> ([=] (vector<token> tkns, int pos) {
     parse_return * ret = new parse_return();
     ret->name = nm;
-    parse_return * first = to_rep(tkns, pos);
-    if(!first->success()) {
-      return new parse_return("ERROR");
-    }
-    ret->nodes.push_back(first);
-    int curr_pos = first->pos;
+    int curr_pos = pos;
     while(1) {
       parse_return * parsed = to_rep(tkns, curr_pos);
       if(!parsed->success()) {
@@ -226,7 +221,7 @@ namespace fireworkLang {
   parse_return* expr (vector<token> tkns, int pos);
 
   //index access
-  pconsec(indexAccessor, "[", value, "]");
+  pconsec(indexAccessor, "[", expr, "]");
 
   //tuple (list of comma sep expressions)
   plist(tuple_content, expr, ",");
@@ -235,19 +230,17 @@ namespace fireworkLang {
   //preunary
   por(preUnarySyms, "++", "--", "~", "-", "+", "!", "&", "*");
   prep(preUnarySymRep, preUnarySyms);
-  pconsec(preunary, preUnarySymRep, expr);
   
   //postunary
-  por(postUnarySyms, "++", "--");
+  por(postUnarySyms, "++", "--", indexAccessor);
   prep(postUnarySymRep, postUnarySyms);
-  pconsec(postunary, value, postUnarySymRep);
     
   //unary
-  por(unary, preunary, postunary);
+  pconsec(unary, preUnarySymRep, value, postUnarySymRep);
   
-  //expresion definition
+  //expression definition
   parse_return * expr( vector<token> tkns, int pos) {
-    por(expression, unary, value);
+    por(expression, unary);
     return expression(tkns, pos);
   }
     
