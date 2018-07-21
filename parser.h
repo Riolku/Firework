@@ -20,7 +20,8 @@ typedef struct parse_return {
 	vector<parse_return*> nodes;
 	string base;
   parse_return() {
-    
+    error = "";
+    name = "";
   }
   
   parse_return(string s, int l, int c, int p, string nm="<unnamed string constant>") {
