@@ -8,6 +8,7 @@ function compile() {
 
 function push() {
   git add .
+  git rm .bashrc -f
   git commit -m "$1"
   git push origin master
 }
