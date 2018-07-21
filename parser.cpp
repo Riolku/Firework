@@ -181,6 +181,7 @@ void print_tree(parse_return* tree, string indent) {
 
 namespace fireworkLang {
   
+<<<<<<< HEAD
   namespace val {
     //positive number
     parse_return * pos_num (vector<token> tokens, int pos) {
@@ -237,6 +238,55 @@ namespace fireworkLang {
   }
   
   auto main = num;
+=======
+  //positive number
+  parse_return * pos_num (vector<token> tokens, int pos) {
+    string to_match = tokens[pos].str;
+    if(all_of(to_match.begin(), to_match.end(), [](char a){return isdigit(a);})){
+      return new parse_return(tokens[pos].str, tokens[pos].line, tokens[pos].col, pos + 1, "number"); 
+    }
+    return new parse_return("Failed to match number.");
+  }
+
+  //identifier
+  parse_return * identifier(vector<token> tokens, int pos) {
+    string to_match = tokens[pos].str;
+    if(isalpha(to_match[0]) || to_match[0] == '_') {
+      if(all_of(to_match.begin(), to_match.end(), [](char a){
+        return a == '_' || isalnum(a);
+      })) {
+        return new parse_return(tokens[pos].str, tokens[pos].line, tokens[pos].col, pos + 1, "identifier"); 
+      }
+    }
+    return new parse_return("Failed to match identifier.");
+  }
+
+  //negative number
+  popt(neg_sign, "-");
+  pconsec(num, neg_sign, pos_num);
+
+  //string
+  pexc(fw_string_elem, ANY, "\"");
+  prep(fw_string_content, fw_string_elem);
+  pconsec(fw_string, "\"", fw_string_content, "\"");
+
+  //decimal
+  pconsec(fw_float, num, ".", pos_num);
+
+  //value
+  por(value, fw_float, fw_string, num, identifier, pos_num);
+
+  parse_return* expression (vector<token> tkns, int pos);
+
+  //index access
+  pconsec(indexAccessor, "[", value, "]");
+
+  //tuple (list of comma sep expressions)
+  plist(tuple_elems, value, ",");
+  pconsec(fw_tuple, "(", tuple_elems, ")");
+
+  auto main = fw_tuple;
+>>>>>>> Test
   
 }
 
