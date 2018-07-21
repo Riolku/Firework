@@ -222,16 +222,36 @@ namespace fireworkLang {
   //value
   por(value, fw_float, fw_string, num, identifier, pos_num);
 
-  parse_return* expression (vector<token> tkns, int pos);
+  //expression declaration
+  parse_return* expr (vector<token> tkns, int pos);
 
   //index access
   pconsec(indexAccessor, "[", value, "]");
 
   //tuple (list of comma sep expressions)
-  plist(tuple_content, value, ",");
+  plist(tuple_content, expr, ",");
   pconsec(fw_tuple, "(", tuple_content, ")");
   
-  auto main = fw_tuple;
+  //preunary
+  por(preUnarySyms, "++", "--", "~", "-", "+", "!", "&", "*");
+  prep(preUnarySymRep, preUnarySyms);
+  pconsec(preunary, preUnarySymRep, expr);
+  
+  //postunary
+  por(postUnarySyms, "++", "--");
+  prep(postUnarySymRep, postUnarySyms);
+  pconsec(postunary, value, postUnarySymRep);
+    
+  //unary
+  por(unary, preunary, postunary);
+  
+  //expresion definition
+  parse_return * expr( vector<token> tkns, int pos) {
+    por(expression, unary, value);
+    return expression(tkns, pos);
+  }
+    
+  auto main = expr;
 
 }
 
