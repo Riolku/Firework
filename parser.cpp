@@ -78,7 +78,8 @@ parser parse_list(string nm, parser elem, parser sep) {
     ret->name = nm;
     parse_return * first = elem(tkns, pos);
     if(!first->success()) {
-      return new parse_return("ERROR");
+      ret->pos = pos;
+      return ret;
     }
     ret->nodes.push_back(first);
     int curr_pos = first->pos;
@@ -232,11 +233,17 @@ namespace fireworkLang {
   prep(preUnarySymRep, preUnarySyms);
   
   //postunary
-  por(postUnarySyms, "++", "--", indexAccessor);
+  //tuple for function call
+  por(postUnarySyms, "++", "--", indexAccessor, fw_tuple);
   prep(postUnarySymRep, postUnarySyms);
     
   //unary
   pconsec(unary, preUnarySymRep, value, postUnarySymRep);
+  
+  //precedence definitions:
+  
+  //dot operator, and -> operator
+  por(classAccessor, ".", "->");
   
   //expression definition
   parse_return * expr( vector<token> tkns, int pos) {
