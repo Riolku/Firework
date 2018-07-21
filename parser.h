@@ -1,6 +1,6 @@
 #include <bits/stdc++.h>
 #include "lexer.h"
- 
+
 #define ANY parse_any()
 
 #define pstr(f) parser f(#f)
