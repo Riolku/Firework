@@ -11,6 +11,11 @@
 #define popt(f, arg) parser f = parse_optional(string(#f), arg)
 #define pexc(f, arg1, arg2) parser f = parse_except(string(#f), arg1, arg2)
   
+namespace data {
+  static bool debug, match_only;
+}
+using namespace data;
+
 typedef struct parse_return {
 	string name;
 	string error;
@@ -71,3 +76,5 @@ void print_tree(parse_return* tree, string indent = "");
 parse_return * compress(parse_return* tree);
 
 parse_return* parse(vector<token> tokens, bool debug, bool match);
+
+#include "parser_template_defs.cpp"
