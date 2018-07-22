@@ -278,6 +278,9 @@ namespace fireworkLang {
   //exponents!!!
   plist(exponent, unary, "**");
   
+  //multiplication
+//   plist
+  
   //expression definition
   parse_return * expr( vector<token> tkns, int pos) {
     por(expression, exponent);
