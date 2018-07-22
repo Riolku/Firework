@@ -3,6 +3,8 @@
 
 using namespace std;
 
+bool debug;
+
 parser::parser(function<parse_return*(vector<token>, int)> f) {
 	func = f;
 }
@@ -86,11 +88,13 @@ parser parse_list(string nm, parser elem, parser sep) {
     while(1) {
       parse_return * parsed_sep = sep(tkns, curr_pos);
       if(!parsed_sep->success()) {
+        if(debug) cerr << "Failed to match separator at position " << curr_pos << endl;
         break;
       }
       curr_pos = parsed_sep->pos;
       parse_return * parsed_elem = elem(tkns, curr_pos);
       if(!parsed_elem->success()) {
+        if(debug) cerr << "Failed to match element at position " << curr_pos << endl;
         break;
       }
       
@@ -114,6 +118,7 @@ parser parse_repeat(string nm, parser to_rep) {
     while(1) {
       parse_return * parsed = to_rep(tkns, curr_pos);
       if(!parsed->success()) {
+        if(debug) cerr << "Failed to match element to repeat at position " << curr_pos << endl;
         break;
       }
       ret -> nodes.push_back(parsed);
@@ -180,7 +185,7 @@ void print_tree(parse_return* tree, string indent) {
 
 
 namespace fireworkLang {
-
+    
   //positive number
   parse_return * pos_num (vector<token> tokens, int pos) {
     string to_match = tokens[pos].str;
@@ -227,27 +232,32 @@ namespace fireworkLang {
   //tuple (list of comma sep expressions)
   plist(tuple_content, expr, ",");
   pconsec(fw_tuple, "(", tuple_content, ")");
+    
+  //dot operator, and -> operator
+  por(classAccessor, ".", "->");
+  
+  plist(accessedMember, value, classAccessor);
   
   //preunary
   por(preUnarySyms, "++", "--", "~", "-", "+", "!", "&", "*");
   prep(preUnarySymRep, preUnarySyms);
   
   //postunary
-  //tuple for function call
-  por(postUnarySyms, "++", "--", indexAccessor, fw_tuple);
+  
+  plist(arguments, expr, ",");
+  pconsec(functionCall, "(", arguments, ")");
+  por(postUnarySyms, "++", "--", indexAccessor, functionCall);
   prep(postUnarySymRep, postUnarySyms);
-    
+  
   //unary
-  pconsec(unary, preUnarySymRep, value, postUnarySymRep);
+  pconsec(unary, preUnarySymRep, accessedMember, postUnarySymRep);
   
-  //precedence definitions:
-  
-  //dot operator, and -> operator
-  por(classAccessor, ".", "->");
+  //exponents!!!
+  plist(exponent, unary, "**");
   
   //expression definition
   parse_return * expr( vector<token> tkns, int pos) {
-    por(expression, unary);
+    por(expression, exponent);
     return expression(tkns, pos);
   }
     
@@ -255,6 +265,7 @@ namespace fireworkLang {
 
 }
 
-parse_return * parse(vector<token> tkns) {
+parse_return * parse(vector<token> tkns, bool dbg) {
+  debug = dbg;
   return fireworkLang::main(tkns, 0);
 }
