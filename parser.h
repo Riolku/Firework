@@ -41,6 +41,10 @@ typedef struct parse_return {
 		return error == "";
 	}
   
+  bool isBase() {
+    return base != "";
+  }
+  
   
 } parse_return;
 
@@ -64,5 +68,6 @@ parser parse_any();
 parser parse_except(string nm, parser arg1, parser arg2);
 
 void print_tree(parse_return* tree, string indent = "");
+parse_return * compress(parse_return* tree);
 
 parse_return* parse(vector<token> tokens, bool debug, bool match);

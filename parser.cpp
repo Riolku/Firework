@@ -16,6 +16,10 @@ parser::parser(parse_return* f(vector<token>, int)) {
 parser::parser(const char * param) {
 	func = [=](vector<token> tokens, int pos) {
     string s = param;
+    if(pos >= tokens.size()) {
+      if(debug) cerr << "Failed to match string literal '" + s + "' at position " << pos << ": Out of range" << endl;
+      return new parse_return("Failed to match string literal '" + s + "'.\n", s);
+    }
 		if (tokens[pos] == s) {
       if(debug || match_only) cerr << "Matched string literal '" + s + "' at position " << pos << endl;
       return new parse_return(tokens[pos].str, tokens[pos].line, tokens[pos].col, pos + 1, "<string constant '" + s + "'>");
@@ -28,10 +32,13 @@ parser::parser(const char * param) {
 parser::parser(string s) {
 	func = [=](vector<token> tokens, int pos) {
 		parse_return * ret;
-    ret -> name = s;
+    if(pos >= tokens.size()) {
+      if(debug) cerr << "Failed to match string literal '" + s + "' at position " << pos << ": Out of range" << endl;
+      return new parse_return("Failed to match string literal '" + s + "'.\n", s);
+    }
 		if (tokens[pos] == s) {
       if(debug || match_only) cerr << "Matched string literal '" + s + "' at position " << pos << endl;
-      ret = new parse_return(tokens[pos].str, tokens[pos].line, tokens[pos].col, pos + 1, "<string constant '" + s + "'>");
+      return new parse_return(tokens[pos].str, tokens[pos].line, tokens[pos].col, pos + 1, "<string constant '" + s + "'>");
 		}
     if(debug) cerr << "Failed to match string literal '" + s + "' at position " << pos << endl;
     return new parse_return("Failed to match string literal '" + s + "'.\n");
@@ -40,12 +47,16 @@ parser::parser(string s) {
 
 template<class ... Ts> parser parse_consecutive(string nm, Ts ... args) {
   vector<parser> funcs = { args... };
-  return function<parse_return*(vector<token>, int)> ([=] (vector<token> tkns, int pos) {
+  return function<parse_return*(vector<token>, int)> ([=] (vector<token> tokens, int pos) {
+    if(pos >= tokens.size()) {
+      if(debug) cerr << "Failed to match '" << nm << "' at position " << pos << " : Out of range" << endl;
+      return new parse_return("ERROR", nm);
+    }
     int curr_pos = pos;
     parse_return * ret = new parse_return();
     ret -> name = nm;
     for(int i = 0; i < funcs.size() ; i++) {
-      parse_return * current = funcs[i](tkns, curr_pos);
+      parse_return * current = funcs[i](tokens, curr_pos);
       if(!current->success()) {
         if(debug) cerr << "Failed to match '" << nm << "' at position " << pos << endl;
         return new parse_return("ERROR", nm);
@@ -62,11 +73,15 @@ template<class ... Ts> parser parse_consecutive(string nm, Ts ... args) {
 
 template<class ... Ts> parser parse_or(string nm, Ts ... args) {
   vector<parser> funcs = { args... };
-  return function<parse_return*(vector<token>, int)> ([=] (vector<token> tkns, int pos) {
+  return function<parse_return*(vector<token>, int)> ([=] (vector<token> tokens, int pos) {
+    if(pos >= tokens.size()) {
+      if(debug) cerr << "Failed to match '" << nm << "' at position " << pos << " : Out of range" << endl;
+      return new parse_return("ERROR", nm);
+    }
     parse_return * ret = new parse_return();
     ret -> name = nm;
     for(int i = 0; i < funcs.size() ; i++) {
-      parse_return * current = funcs[i](tkns, pos);
+      parse_return * current = funcs[i](tokens, pos);
       if(current->success()) {
         ret->nodes.push_back(current);
         ret->pos = current -> pos;
@@ -80,10 +95,10 @@ template<class ... Ts> parser parse_or(string nm, Ts ... args) {
 }
 
 parser parse_list(string nm, parser elem, parser sep) {
-  return function<parse_return*(vector<token>, int)> ([=] (vector<token> tkns, int pos) {    
+  return function<parse_return*(vector<token>, int)> ([=] (vector<token> tokens, int pos) {    
     parse_return * ret = new parse_return();
     ret->name = nm;
-    parse_return * first = elem(tkns, pos);
+    parse_return * first = elem(tokens, pos);
     if(!first->success()) {
       ret->pos = pos;
       return ret;
@@ -92,18 +107,14 @@ parser parse_list(string nm, parser elem, parser sep) {
     int curr_pos = first->pos;
     parse_return * parsed_sep, * parsed_elem;
     while(1) {
-      if(curr_pos > tkns.size()) goto failSep;
-      parsed_sep = sep(tkns, curr_pos);
+      parsed_sep = sep(tokens, curr_pos);
       if(!parsed_sep->success()) {
-        failSep:
         if(debug) cerr << "Failed to match " << parsed_sep->name << " separator at position " << curr_pos << endl;
         break;
       }
       curr_pos = parsed_sep->pos;
-      if(curr_pos > tkns.size()) goto failElem;
-      parsed_elem = elem(tkns, curr_pos);
+      parsed_elem = elem(tokens, curr_pos);
       if(!parsed_elem->success()) {
-        failElem:
         if(debug) cerr << "Failed to match " << parsed_elem->name <<" element at position " << curr_pos << endl;
         break;
       }
@@ -122,16 +133,14 @@ parser parse_list(string nm, parser elem, parser sep) {
 }
 
 parser parse_repeat(string nm, parser to_rep) {
-  return function<parse_return*(vector<token>, int)> ([=] (vector<token> tkns, int pos) {
+  return function<parse_return*(vector<token>, int)> ([=] (vector<token> tokens, int pos) {
     parse_return * ret = new parse_return();
     ret->name = nm;
     int curr_pos = pos;
     parse_return * parsed;
     while(1) {
-      if(curr_pos > tkns.size()) goto failure;
-      parsed = to_rep(tkns, curr_pos);
+      parsed = to_rep(tokens, curr_pos);
       if(!parsed->success()) {
-        failure:
         if(debug) cerr << "Failed to match " << parsed->name << " to repeat at position " << curr_pos << endl;
         break;
       }
@@ -148,14 +157,15 @@ parser parse_repeat(string nm, parser to_rep) {
 
 
 parse_return* parser::operator () (vector<token> tokens, int pos) const {
-	if(pos >= tokens.size()) {
-    return new parse_return("Out of range.");
-  }
   return func(tokens, pos);
 }
 
 parser parse_optional(string nm, parser a) {
-  return function<parse_return*(vector<token>, int)> ([=] (vector<token> tokens, int pos) { 
+  return function<parse_return*(vector<token>, int)> ([=] (vector<token> tokens, int pos) {
+    if(pos >= tokens.size()) {
+      if(debug) cerr << "Failed to match '" << nm << "' at position " << pos << " : Out of range" << endl;
+      return new parse_return("ERROR", nm);
+    }
     parse_return* parsed = a(tokens, pos);
     if(parsed->success()) {
       if(debug || match_only) cerr << "Matched '" << nm << "' at position " << pos << endl;
@@ -169,12 +179,20 @@ parser parse_optional(string nm, parser a) {
 
 parser parse_any() {
   return function<parse_return*(vector<token>, int)> ([=] (vector<token> tokens, int pos) { 
+    if(pos >= tokens.size()) {
+      if(debug) cerr << "Failed to match '" << "ANY" << "' at position " << pos << " : Out of range" << endl;
+      return new parse_return("Out of range.");
+    }
     return new parse_return(tokens[pos].str, tokens[pos].line, tokens[pos].col, pos + 1, "ANY");
   });
 }
 
 parser parse_except(string nm, parser arg1, parser arg2) {
   return function<parse_return*(vector<token>, int)> ([=] (vector<token> tokens, int pos) { 
+    if(pos >= tokens.size()) {
+      if(debug) cerr << "Failed to match '" << nm << "' at position " << pos << " : Out of range" << endl;
+      return new parse_return("ERROR", nm);
+    }
     parse_return* first = arg1(tokens, pos);
     parse_return* second = arg2(tokens, pos);
     if(!second->success()) {
@@ -202,6 +220,24 @@ void print_tree(parse_return* tree, string indent) {
   }
 }
 
+parse_return * compress(parse_return * tree) {
+  if(tree->isBase()) return tree;
+  vector<parse_return*> v = tree->nodes;
+  tree->nodes.clear();
+  for(int i = 0; i < v.size(); i++) {
+    parse_return * res = compress(v[i]);
+    if(res) {
+      tree->nodes.push_back(res);
+    }
+  }
+  if(tree->nodes.size() == 0) {
+    return NULL;
+  }
+  if(tree->nodes.size() == 1) {
+    return compress(tree->nodes[0]);
+  }
+  return tree;
+}
 
 namespace fireworkLang {
     
@@ -219,6 +255,7 @@ namespace fireworkLang {
   //identifier
   parse_return * identifier(vector<token> tokens, int pos) {
     string to_match = tokens[pos].str;
+    if(to_match=="not") goto failure;
     if(isalpha(to_match[0]) || to_match[0] == '_') {
       if(all_of(to_match.begin(), to_match.end(), [](char a){
         return a == '_' || isalnum(a);
@@ -227,6 +264,7 @@ namespace fireworkLang {
         return new parse_return(tokens[pos].str, tokens[pos].line, tokens[pos].col, pos + 1, "identifier"); 
       }
     }
+    failure:
     if(debug) cerr << "Failed to match identifier '" + to_match + "' at position " << pos << endl;
     return new parse_return("Failed to match identifier.");
   }
@@ -247,7 +285,7 @@ namespace fireworkLang {
   por(value, fw_float, fw_string, num, identifier, pos_num);
 
   //expression declaration
-  parse_return* expr (vector<token> tkns, int pos);
+  parse_return* expr (vector<token> tokens, int pos);
 
   //index access
   pconsec(indexAccessor, "[", expr, "]");
@@ -262,7 +300,7 @@ namespace fireworkLang {
   plist(accessedMember, value, classAccessor);
   
   //preunary
-  por(preUnarySyms, "++", "--", "~", "-", "+", "!", "&", "*");
+  por(preUnarySyms, "++", "--", "~", "-", "+", "!", "not", "&", "*");
   prep(preUnarySymRep, preUnarySyms);
   
   //postunary
@@ -282,18 +320,41 @@ namespace fireworkLang {
   por(mul_div_symbol, "*", "/", "//", "%");
   plist(mul_div, exponent, mul_div_symbol);
   
+  //addition
+  por(add_sub_symbol, "+", "-");
+  plist(add_sub, mul_div, add_sub_symbol);
+  
+  //binary operators
+  por(binary_operator, "&", "^", "|", ">>", "<<");
+  plist(binary, add_sub, binary_operator);
+  
+  //in operators
+  por(in_operator, "in", "not in");
+  plist(in_expression, binary, in_operator);
+  
+  //comparisons
+  por(comparison_operator, ">", ">=", "<", "<=", "==", "!=");
+  plist(comparison, in_expression, comparison_operator);
+  
+  //comparison and/or
+  por(logical_and_or_operator, "and", "&&", "or", "||");
+  plist(logical_and_or_expression, comparison, logical_and_or_operator);
+  
+  //ternary
+  pconsec(ternary, logical_and_or_expression, "?", logical_and_or_expression, ":", logical_and_or_expression);
+  
   //expression definition
-  parse_return * expr( vector<token> tkns, int pos) {
-    por(expression, mul_div);
-    return expression(tkns, pos);
+  parse_return * expr( vector<token> tokens, int pos) {
+    por(expression, ternary, logical_and_or_expression);
+    return expression(tokens, pos);
   }
     
   auto main = expr;
 
 }
 
-parse_return * parse(vector<token> tkns, bool dbg, bool mtch) {
+parse_return * parse(vector<token> tokens, bool dbg, bool mtch) {
   debug = dbg;
   match_only = mtch;
-  return fireworkLang::main(tkns, 0);
+  return compress(fireworkLang::main(tokens, 0));
 }
