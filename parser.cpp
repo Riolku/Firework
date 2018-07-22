@@ -3,7 +3,7 @@
 
 using namespace std;
 
-bool debug;
+bool debug, match_only;
 
 parser::parser(function<parse_return*(vector<token>, int)> f) {
 	func = f;
@@ -17,7 +17,7 @@ parser::parser(const char * param) {
 	func = [=](vector<token> tokens, int pos) {
     string s = param;
 		if (tokens[pos] == s) {
-      if(debug) cerr << "Matched string literal '" + s + "' at position " << pos << endl;
+      if(debug || match_only) cerr << "Matched string literal '" + s + "' at position " << pos << endl;
       return new parse_return(tokens[pos].str, tokens[pos].line, tokens[pos].col, pos + 1, "<string constant '" + s + "'>");
 		}
     if(debug) cerr << "Failed to match string literal '" + s + "' at position " << pos << endl;
@@ -30,7 +30,7 @@ parser::parser(string s) {
 		parse_return * ret;
     ret -> name = s;
 		if (tokens[pos] == s) {
-      if(debug) cerr << "Matched string literal '" + s + "' at position " << pos << endl;
+      if(debug || match_only) cerr << "Matched string literal '" + s + "' at position " << pos << endl;
       ret = new parse_return(tokens[pos].str, tokens[pos].line, tokens[pos].col, pos + 1, "<string constant '" + s + "'>");
 		}
     if(debug) cerr << "Failed to match string literal '" + s + "' at position " << pos << endl;
@@ -55,7 +55,7 @@ template<class ... Ts> parser parse_consecutive(string nm, Ts ... args) {
     }
     
     ret -> pos = curr_pos; 
-    if(debug) cerr << "Matched '" << nm << "' at position " << pos << endl;
+    if(debug || match_only) cerr << "Matched '" << nm << "' at position " << pos << endl;
     return ret;
   });
 }
@@ -70,7 +70,7 @@ template<class ... Ts> parser parse_or(string nm, Ts ... args) {
       if(current->success()) {
         ret->nodes.push_back(current);
         ret->pos = current -> pos;
-        if(debug) cerr << "Matched '" << nm << "' at position " << pos << endl;
+        if(debug || match_only) cerr << "Matched '" << nm << "' at position " << pos << endl;
         return ret;
       }
     }
@@ -115,7 +115,7 @@ parser parse_list(string nm, parser elem, parser sep) {
     }
     
     ret -> pos = curr_pos;
-    if(debug) cerr << "Matched '" << nm << "' at position " << pos << endl;
+    if(debug || match_only) cerr << "Matched '" << nm << "' at position " << pos << endl;
     return ret;
     
   });
@@ -141,14 +141,14 @@ parser parse_repeat(string nm, parser to_rep) {
     }
     
     ret -> pos = curr_pos; 
-    if(debug) cerr << "Matched '" << nm << "' at position " << pos << endl;
+    if(debug || match_only) cerr << "Matched '" << nm << "' at position " << pos << endl;
     return ret;
   });
 }
 
 
 parse_return* parser::operator () (vector<token> tokens, int pos) const {
-	if(pos > tokens.size()) {
+	if(pos >= tokens.size()) {
     return new parse_return("Out of range.");
   }
   return func(tokens, pos);
@@ -158,11 +158,11 @@ parser parse_optional(string nm, parser a) {
   return function<parse_return*(vector<token>, int)> ([=] (vector<token> tokens, int pos) { 
     parse_return* parsed = a(tokens, pos);
     if(parsed->success()) {
-      if(debug) cerr << "Matched '" << nm << "' at position " << pos << endl;
+      if(debug || match_only) cerr << "Matched '" << nm << "' at position " << pos << endl;
       parsed->name = nm;
       return parsed;
     }
-    if(debug) cerr << "Matched '" << "<EMPTY STRING>" << "' at position " << pos << endl;
+    if(debug || match_only) cerr << "Matched '" << "<EMPTY STRING>" << "' at position " << pos << endl;
     return new parse_return("<EMPTY STRING>", tokens[pos].line, tokens[pos].col, pos, nm);
   });
 }
@@ -178,7 +178,7 @@ parser parse_except(string nm, parser arg1, parser arg2) {
     parse_return* first = arg1(tokens, pos);
     parse_return* second = arg2(tokens, pos);
     if(!second->success()) {
-      if(debug) cerr << "Matched '" << nm << "' at position " << pos << endl;
+      if(debug || match_only) cerr << "Matched '" << nm << "' at position " << pos << endl;
       return first;
     }
     if(debug) cerr << "Failed to match '" << nm << "' at position " << pos << endl;
@@ -209,7 +209,7 @@ namespace fireworkLang {
   parse_return * pos_num (vector<token> tokens, int pos) {
     string to_match = tokens[pos].str;
     if(all_of(to_match.begin(), to_match.end(), [](char a){return isdigit(a);})){
-      if(debug) cerr << "Matched number '" + to_match + "'." << endl;
+      if(debug || match_only) cerr << "Matched number '" + to_match + "'." << endl;
       return new parse_return(tokens[pos].str, tokens[pos].line, tokens[pos].col, pos + 1, "number"); 
     }
     if(debug) cerr << "Failed to match number '" + to_match + "' at position " << pos << endl;
@@ -223,7 +223,7 @@ namespace fireworkLang {
       if(all_of(to_match.begin(), to_match.end(), [](char a){
         return a == '_' || isalnum(a);
       })) {
-        if(debug) cerr << "Matched identifier '" + to_match + "' at position " << pos << endl;
+        if(debug || match_only) cerr << "Matched identifier '" + to_match + "' at position " << pos << endl;
         return new parse_return(tokens[pos].str, tokens[pos].line, tokens[pos].col, pos + 1, "identifier"); 
       }
     }
@@ -279,11 +279,12 @@ namespace fireworkLang {
   plist(exponent, unary, "**");
   
   //multiplication
-//   plist
+  por(mul_div_symbol, "*", "/", "//", "%");
+  plist(mul_div, exponent, mul_div_symbol);
   
   //expression definition
   parse_return * expr( vector<token> tkns, int pos) {
-    por(expression, exponent);
+    por(expression, mul_div);
     return expression(tkns, pos);
   }
     
@@ -291,7 +292,8 @@ namespace fireworkLang {
 
 }
 
-parse_return * parse(vector<token> tkns, bool dbg) {
+parse_return * parse(vector<token> tkns, bool dbg, bool mtch) {
   debug = dbg;
+  match_only = mtch;
   return fireworkLang::main(tkns, 0);
 }
