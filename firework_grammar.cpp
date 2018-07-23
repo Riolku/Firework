@@ -1,6 +1,10 @@
 #include "parser.h"
 namespace fireworkLang {
-    
+  
+  parse_return* expr (vector<token> tokens, int pos);
+  parse_return* assign(vector<token> tokens, int pos);
+  parse_return* prog(vector<token> tokens, int pos);
+  
   //positive number
   parse_return * pos_num (vector<token> tokens, int pos) {
     string to_match = tokens[pos].str;
@@ -46,9 +50,6 @@ namespace fireworkLang {
 
   //value
   por(value, fw_float, fw_string, num, identifier, pos_num);
-
-  //expression declaration
-  parse_return* expr (vector<token> tokens, int pos);
 
   //index access
   pconsec(indexAccessor, "[", expr, "]");
@@ -106,16 +107,12 @@ namespace fireworkLang {
   //ternary
   pconsec(ternary, logical_and_or_expression, "?", logical_and_or_expression, ":", logical_and_or_expression);
   
-  //expression definition
-  parse_return * expr( vector<token> tokens, int pos) {
-    por(expression, ternary, logical_and_or_expression);
-    return expression(tokens, pos);
-  }
+  //expression
+  por(expression, ternary, logical_and_or_expression);
   
   //assignment
   por(assignment_symbol, "=", "-=", "+=", "~=", "%=", "^=", "&=", "*=", "**=", "&&=", "|=", "||=", "/=", "//=");
   pconsec(assignment, list_of_identifiers, assignment_symbol, expr);
-    
   
   //statement
   por(statement, assignment, expr, "");
@@ -127,6 +124,16 @@ namespace fireworkLang {
   plist(program, statement, end_statement);
   
   auto main = program;
+  
+  parse_return* expr (vector<token> tokens, int pos){
+    return expression(tokens, pos);
+  }
+  parse_return* assign(vector<token> tokens, int pos) {
+    return assignment(tokens, pos);
+  }
+  parse_return* prog(vector<token> tokens, int pos) {
+    return program(tokens, pos);
+  }
 }
 
 parse_return * parse(vector<token> tokens, bool dbg, bool mtch) {
