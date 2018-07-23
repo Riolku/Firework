@@ -5,10 +5,10 @@ namespace fireworkLang {
   parse_return * pos_num (vector<token> tokens, int pos) {
     string to_match = tokens[pos].str;
     if(all_of(to_match.begin(), to_match.end(), [](char a){return isdigit(a);})){
-      if(debug || match_only) cerr << "Matched number '" + to_match + "'." << endl;
+      if(debug || match_only) cerr << "Matched number '" + (to_match == "\n" ? "\\n" : to_match) + "'." << endl;
       return new parse_return(tokens[pos].str, tokens[pos].line, tokens[pos].col, pos + 1, "number"); 
     }
-    if(debug) cerr << "Failed to match number '" + to_match + "' at position " << pos << endl;
+    if(debug) cerr << "Failed to match number '" + (to_match == "\n" ? "\\n" : to_match) + "' at position " << pos << endl;
     return new parse_return("Failed to match number.");
   }
 
@@ -20,15 +20,18 @@ namespace fireworkLang {
       if(all_of(to_match.begin(), to_match.end(), [](char a){
         return a == '_' || isalnum(a);
       })) {
-        if(debug || match_only) cerr << "Matched identifier '" + to_match + "' at position " << pos << endl;
+        if(debug || match_only) cerr << "Matched identifier '" + (to_match == "\n" ? "\\n" : to_match) + "' at position " << pos << endl;
         return new parse_return(tokens[pos].str, tokens[pos].line, tokens[pos].col, pos + 1, "identifier"); 
       }
     }
     failure:
-    if(debug) cerr << "Failed to match identifier '" + to_match + "' at position " << pos << endl;
+    if(debug) cerr << "Failed to match identifier '" + (to_match == "\n" ? "\\n" : to_match) + "' at position " << pos << endl;
     return new parse_return("Failed to match identifier.");
   }
-
+  
+  //identifier list
+  prep(list_of_identifiers, identifier);
+  
   //negative number
   popt(neg_sign, "-");
   pconsec(num, neg_sign, pos_num);
@@ -108,9 +111,22 @@ namespace fireworkLang {
     por(expression, ternary, logical_and_or_expression);
     return expression(tokens, pos);
   }
+  
+  //assignment
+  por(assignment_symbol, "=", "-=", "+=", "~=", "%=", "^=", "&=", "*=", "**=", "&&=", "|=", "||=", "/=", "//=");
+  pconsec(assignment, list_of_identifiers, assignment_symbol, expr);
     
-  auto main = expr;
-
+  
+  //statement
+  por(statement, assignment, expr, "");
+  
+  //end statement
+  por(end_statement, "\n", ";");
+  
+  //program
+  plist(program, statement, end_statement);
+  
+  auto main = program;
 }
 
 parse_return * parse(vector<token> tokens, bool dbg, bool mtch) {

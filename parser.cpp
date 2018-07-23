@@ -165,7 +165,7 @@ void print_tree(parse_return* tree, string indent) {
   }
   cout << indent << tree->name << ":" << tree-> base << endl;
   for(auto a : tree->nodes) {
-    print_tree(a, indent+" ");
+    print_tree(a, indent+"  ");
   }
 }
 
